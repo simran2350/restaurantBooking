@@ -78,7 +78,8 @@ public class BookingApplication {
 				}
 			}
 			if(result.isEmpty()) {
-				result.put("500", "No bookings found");
+				result.put("code", "200");
+				result.put("message", "No bookings found");
 			}
 			return result.toString();
         }
@@ -89,13 +90,13 @@ public class BookingApplication {
         public String book(BookingInput input) {
 
 			int count = 0;
-			String result = "";
 			String customerName = input.getCustomerName();
 			String email = input.getEmail();
 			String phone = input.getPhone();
 			String date = input.getdate();
 			int tableSize = input.getTableSize();
 			String slot = input.getSlot();
+			JSONObject result = new JSONObject();
 
 			for(TableCount tb: this._tbCount) {
 				if(tb.getdate().equals(date) && tb.getSlot().equals(slot) && tb.getTableSize() == tableSize) {
@@ -103,14 +104,16 @@ public class BookingApplication {
 					if(count > 0) {
 						tb.setCount(count - 1);
 						this._bookings.put(this._bookings.size() + 1, new Booking(customerName, email, phone, date, tableSize, slot));
-						result = "Successfully booked the table";
+						result.put("code", "200");
+						result.put("message", "Successfully booked the table");
 						break;
 					}
 				} else {
-					result = "No table available or booking not allowed";
+					result.put("code", "200");
+					result.put("message", "No table available or booking not allowed");
 				}
 			}
-			return result;
+			return result.toString();
         }
     }
 }
