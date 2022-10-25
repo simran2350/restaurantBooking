@@ -1,5 +1,6 @@
 package com.example.booking;
 
+import io.muserver.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,8 +9,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.ext.MessageBodyWriter;
-import static java.util.Arrays.asList;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import com.example.booking.models.Booking;
 import com.example.booking.models.BookingInput;
@@ -17,38 +16,11 @@ import com.example.booking.models.ShowBookingInput;
 import com.example.booking.models.TableCount;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import org.json.JSONObject;
-import io.muserver.openapi.SchemaObject;
-import io.muserver.openapi.SchemaObjectBuilder;
 import io.muserver.rest.RestHandlerBuilder;
-import io.muserver.rest.SchemaObjectCustomizer;
-import io.muserver.rest.SchemaObjectCustomizerContext;
-import io.muserver.*;
-import java.lang.reflect.Type;
-import javax.ws.rs.core.MediaType;
-import java.io.OutputStreamWriter;
-import java.lang.annotation.Annotation;
-import javax.ws.rs.core.MultivaluedMap;
-import java.io.IOException;
-import java.io.OutputStream;
-import javax.ws.rs.WebApplicationException;
 
 
 @SpringBootApplication
 public class BookingApplication {
-
-	/**
-     * A JAX-RS message body writer that converts a Product object to JSON
-     */
-    @Produces("application/json")
-    private static class BookingWriter implements MessageBodyWriter<Booking> {
-        public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
-            return Booking.class.isAssignableFrom(type);
-        }
-
-        public void writeTo(Booking booking, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
-            booking.toJSON().write(new OutputStreamWriter(entityStream));
-        }
-    }
 	
 	public static void main(String[] args) {
 
@@ -70,29 +42,14 @@ public class BookingApplication {
             .addHandler(
 				RestHandlerBuilder.restHandler(bookingResource)
 				.addCustomReader(new JacksonJaxbJsonProvider())
-				.addCustomWriter(new BookingWriter())
 			)
-			// .addHandler(Method.GET, "/showBookings", (request, response, path) -> {
-
-			// 	JSONObject json = new JSONObject(request.readBodyAsString());
-			// 	List<Booking> result = new ArrayList<>();
-			// 	//JSONObject result = new JSONObject();
-			// 	for(Map.Entry<Integer, Booking> element: bookings.entrySet()) {
-			// 		if(element.getValue().getdate().equals(json.get("date"))) { 
-			// 			result.add(element.getValue());
-			// 			//result.put(element.getKey().toString(), element.getValue());
-			// 		}
-			// 	}
-			// 	response.contentType("text/html;charset=utf-8");
-			// 	response.write("Result: " + result);
-            // })
             .start();
 
         System.out.println("API example: " + server.uri().resolve("/api"));
     }
 
 	@Path("/api")
-    public static class BookingResource implements SchemaObjectCustomizer{
+    public static class BookingResource {
 
         private Map<Integer, Booking> _bookings;
 		private List<TableCount> _tbCount;
@@ -102,22 +59,6 @@ public class BookingApplication {
 			this._tbCount = tableCount;
         }
 
-		@Override
-        public SchemaObjectBuilder customize(SchemaObjectBuilder builder, SchemaObjectCustomizerContext context) {
-            if (context.resource() == this && context.type().equals(Booking.class)) {
-                Map<String, SchemaObject> props = new HashMap<>();
-                props.put("customerName", SchemaObjectBuilder.schemaObjectFrom(String.class).build());
-                props.put("email", SchemaObjectBuilder.schemaObjectFrom(String.class).build());
-				props.put("phone", SchemaObjectBuilder.schemaObjectFrom(String.class).build());
-                props.put("date", SchemaObjectBuilder.schemaObjectFrom(String.class).build());
-                props.put("tableSize", SchemaObjectBuilder.schemaObjectFrom(Integer.class).build());
-                props.put("slot", SchemaObjectBuilder.schemaObjectFrom(String.class).build());
-                builder.withProperties(props)
-                    .withRequired(asList("customerName", "email", "phone", "date", "tableSize", "slot"));
-            }
-            return builder;
-        }
-
         @GET
         @Path("/showBookings")
 		@Produces("application/json")
@@ -125,9 +66,19 @@ public class BookingApplication {
 			String date = input.getdate();
 			JSONObject result = new JSONObject();
 			for(Map.Entry<Integer, Booking> element: this._bookings.entrySet()) {
-				if(element.getValue().getdate().equals(date)) { 
-					result.put(element.getKey().toString(), element.getValue());
+				if(element.getValue().getdate().equals(date)) {
+					JSONObject filteredBooking = new JSONObject(); 
+					filteredBooking.put("customerName", element.getValue().getCustomerName());
+					filteredBooking.put("email", element.getValue().getEmail());
+					filteredBooking.put("phone", element.getValue().getPhone());
+					filteredBooking.put("date", element.getValue().getdate());
+					filteredBooking.put("tableSize", element.getValue().getTableSize());
+					filteredBooking.put("slot", element.getValue().getSlot());
+					result.put(element.getKey().toString(), filteredBooking);
 				}
+			}
+			if(result.isEmpty()) {
+				result.put("500", "No bookings found");
 			}
 			return result.toString();
         }
